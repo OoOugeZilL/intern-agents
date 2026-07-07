@@ -51,6 +51,10 @@ class QueryService:
         sessionContext = self.sessionStore.Get(request.sessionId)
         semanticContext = self.schemaIndex.Retrieve(request.databaseId, request.question)
         response = self.agent.Run(request, semanticContext, sessionContext)
+        if not request.showSql:
+            response.sql = None
+        if not request.showTrace:
+            response.trace = []
         self.sessionStore.Save(request.sessionId, {
             "lastQuestion": request.question, "lastSql": response.sql,
             "lastDatabaseId": request.databaseId, "lastColumns": response.columns,

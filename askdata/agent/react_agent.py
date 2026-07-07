@@ -17,13 +17,13 @@ RUN_QUERY_TOOL = {
     "type": "function",
     "function": {
         "name": "run_query",
-        "description": "Execute a SQLite SELECT query against the database. The query is automatically validated. Returns column names and up to 20 rows of results. If the query has an error, the error message is returned so you can fix the SQL and retry.",
+        "description": "Execute a SELECT query against the database. The query is auto-validated (rejects non-SELECT, SELECT *, multi-statement). A LIMIT is added if missing (max 100 rows). Returns column names and a sample of up to 20 result rows. On error, returns the error message so you can fix and retry.",
         "parameters": {
             "type": "object",
             "properties": {
                 "sql": {
                     "type": "string",
-                    "description": "The SQLite SELECT query to execute.",
+                    "description": "The SELECT query to execute.",
                 }
             },
             "required": ["sql"],
