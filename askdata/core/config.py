@@ -31,6 +31,7 @@ def LoadSettings():
         "BIRD_RAW_DIR": "birdRawDir",
         "BIRD_PROCESSED_DIR": "birdProcessedDir",
         "BIRD_DEMO_DIR": "birdDemoDir",
+        "BIRD_INSTRUCTIONS_DIR": "birdInstructionsDir",
     }
     for envName, fieldName in pairs.items():
         if os.getenv(envName): setattr(settings, fieldName, os.getenv(envName))
