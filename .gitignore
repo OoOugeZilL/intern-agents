@@ -25,3 +25,7 @@ Thumbs.db
 
 # Claude
 .claude/
+
+# Personal / generated
+internship_log_*.tex
+reports/

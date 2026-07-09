@@ -1,6 +1,7 @@
 """ReAct agent loop: the LLM reasons, calls tools, and decides when to answer."""
 
 import json
+import re
 
 from askdata.agent.llmclient import LlmClient
 from askdata.agent.prompts import BuildReActSystemPrompt
@@ -64,7 +65,7 @@ class ReActAgent:
                 trace.append(TraceStep(step=f"Reason-{iteration + 1}", status="success", message=msg.content[:300]))
 
             if not msg.tool_calls:
-                answer = msg.content or "No answer produced."
+                answer = self.CleanFinalAnswer(msg.content or "No answer produced.")
                 break
 
             if msg.content:
@@ -105,7 +106,11 @@ class ReActAgent:
                     trace.append(TraceStep(step="ExecuteSql", status="retry", message=str(error)))
                     messages.append({"role": "tool", "tool_call_id": tc.id, "content": f"Error: {error}"})
         else:
-            answer = "Unable to answer the question within the available steps."
+            if executed:
+                answer = self.BuildFallbackAnswer(lastColumns, lastRows)
+                trace.append(TraceStep(step="FinalizeAnswer", status="fallback", message="Model did not finalize after successful SQL execution."))
+            else:
+                answer = "Unable to answer the question within the available steps."
 
         analysis = self.analyzer.Analyze(request.question, lastColumns, lastRows)
         chart = self.chartBuilder.Build(request.question, lastColumns, lastRows)
@@ -157,6 +162,37 @@ class ReActAgent:
 
     def SerializeToolCalls(self, msg):
         return [{"id": tc.id, "type": "function", "function": {"name": tc.function.name, "arguments": tc.function.arguments}} for tc in msg.tool_calls]
+
+    def CleanFinalAnswer(self, answer):
+        cleaned = (answer or "").strip()
+        answerMatch = re.search(r"(?:\*\*)?answer\s*:(?:\*\*)?\s*(.+)\Z", cleaned, re.I | re.S)
+        if answerMatch:
+            return answerMatch.group(1).strip()
+        paragraphs = [paragraph.strip() for paragraph in re.split(r"\n\s*\n", cleaned) if paragraph.strip()]
+        if paragraphs and re.match(r"(?i)^(yes|no)\b", paragraphs[-1]):
+            return paragraphs[-1]
+        paragraphs = [paragraph for paragraph in paragraphs if not re.search(r"(?i)\bthe question asks\b", paragraph)]
+        if paragraphs:
+            cleaned = "\n\n".join(paragraphs)
+        cleaned = re.sub(r"(?is)^the question asks:.*?\n\s*\n", "", cleaned).strip()
+        cleaned = re.sub(r"(?is)^the answer is .*?\n\s*\n", "", cleaned).strip()
+        return cleaned
+
+    def BuildFallbackAnswer(self, columns, rows):
+        if not rows:
+            return "The query returned no rows."
+        shownRows = rows[:5]
+        formattedRows = []
+        for row in shownRows:
+            values = []
+            for column in columns:
+                value = row.get(column)
+                values.append(f"{column}: {value if value is not None else 'NULL'}")
+            formattedRows.append("; ".join(values))
+        prefix = f"The query returned {len(rows)} row{'s' if len(rows) != 1 else ''}."
+        if len(rows) > len(shownRows):
+            return f"{prefix} First {len(shownRows)}: " + " | ".join(formattedRows)
+        return f"{prefix} " + " | ".join(formattedRows)
 
     def BuildDatabaseUrl(self, semanticContext):
         if semanticContext.databasePath:

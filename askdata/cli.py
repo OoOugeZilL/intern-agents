@@ -2,12 +2,14 @@
 
 from pathlib import Path
 import importlib.util
+import json
 
 import typer
 import uvicorn
 
 from askdata.core.errors import AppError
 from askdata.bird.birdprep import BirdPrep
+from askdata.bird.evalrunner import BirdEvalRunner
 from askdata.app.queryservice import QueryService
 from askdata.app.sessionstore import SessionStore
 from askdata.chat_session import ChatSession
@@ -56,6 +58,19 @@ def GenInstructions(processedDir: Path = typer.Option(Path("data/bird/processed"
     spec.loader.exec_module(mod)
     count = mod.Generate(str(processedDir), str(outDir))
     typer.echo(f"Generated {count} instructions files in {outDir}/")
+
+
+@cli.command("eval-bird")
+def EvalBird(database: str = typer.Option(None, "--database", "-d"), limit: int = typer.Option(None, "--limit", "-n"), out: Path = typer.Option(None, "--out"), seed: int = typer.Option(None, "--seed")):
+    """Runs end-to-end BIRD evaluation for the current AskData agent."""
+    try:
+        report = BirdEvalRunner(settings=LoadSettings()).Run(databaseId=database, limit=limit, out=out, seed=seed)
+        typer.echo(json.dumps(report["summary"], indent=2, ensure_ascii=False))
+        if out:
+            typer.echo(f"Wrote evaluation report to {out}")
+    except AppError as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(code=1) from error
 
 
 @cli.command("chat")

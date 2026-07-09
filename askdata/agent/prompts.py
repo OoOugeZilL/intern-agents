@@ -66,6 +66,8 @@ PRE-AGGREGATED COLUMNS (do NOT double-aggregate):
 - If a column name contains words like Avg, Average, Rate, Percent, Pct, Total, Sum, Ratio, or Score: it is likely already a computed metric per row. Do NOT wrap it in AVG(), SUM(), or other aggregate functions.
 - Example: column "AvgScrWrite" means "average writing score per school". Use it directly: SELECT AvgScrWrite — never AVG(AvgScrWrite).
 - Only use aggregate functions (AVG, SUM, COUNT, MIN, MAX) on raw atomic columns, not on pre-computed metrics.
+- If the schema evidence defines a formula, follow that formula even when it aggregates a pre-computed metric.
+- Example: evidence says "Average of average math = sum(average math scores) / count(schools)" → group by the requested school fields and use SUM(AvgScrMath) / COUNT(cds).
 
 JOIN (mandatory when data spans tables):
 - Before you skip a JOIN, ask yourself: does my WHERE column come from a different table than my SELECT column? If yes → JOIN them.
@@ -80,11 +82,11 @@ COMPUTATION (push everything into SQL):
 ANSWER (final output rules):
 - Your answer MUST contain ONLY information present in the SQL results. Never invent numbers, names, or facts that were not in the query output.
 - Do not include your reasoning, doubts, or chain-of-thought in the final answer.
+- Do not restate the question or explain why the answer follows.
+- For yes/no questions, answer with one short sentence starting with "Yes" or "No".
 - Keep answers concise — one or two sentences.
 - If data is insufficient, say so.
 
 SQL RULES:
 - Only SELECT. Never INSERT, UPDATE, DELETE, DROP, ALTER, CREATE, TRUNCATE.
 - Never use SELECT *."""
-
-

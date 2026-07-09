@@ -45,6 +45,7 @@ class ChatSession:
     def Start(self):
         """Runs the interactive REPL loop."""
         self._EnsureSchemaIndex()
+        self._NormalizeSelectedDatabase()
         self._LoadQuestions()
         self._PrintWelcome()
         while True:
@@ -62,6 +63,32 @@ class ChatSession:
 
     def _EnsureSchemaIndex(self):
         self._schemaIndex = self.queryService.EnsureSchemaIndex()
+
+    def _NormalizeSelectedDatabase(self):
+        if not self.databaseId:
+            return
+        resolved = self._ResolveDatabaseId(self.databaseId)
+        if resolved:
+            self.databaseId = resolved
+            return
+        print(f"Unknown database: {c(self.databaseId, Color.RED)}")
+        print(f"Available: {c(', '.join(sorted(self._schemaIndex.databases.keys())), Color.DIM)}")
+        self.databaseId = None
+
+    def _ResolveDatabaseId(self, databaseId):
+        dbs = self._schemaIndex.databases
+        if databaseId in dbs:
+            return databaseId
+        wanted = self._DatabaseMatchKey(databaseId)
+        matches = [dbId for dbId in dbs if self._DatabaseMatchKey(dbId) == wanted]
+        if len(matches) == 1:
+            return matches[0]
+        return None
+
+    def _DatabaseMatchKey(self, databaseId):
+        tokens = re.findall(r"[A-Za-z0-9]+", databaseId.lower())
+        normalized = [token[:-1] if token.endswith("s") else token for token in tokens]
+        return "".join(normalized)
 
     def _LoadQuestions(self):
         processedDir = self.settings.birdProcessedDir
@@ -168,11 +195,12 @@ class ChatSession:
             print("Switched to auto-detection.")
         elif arg:
             dbs = self._schemaIndex.databases
-            if arg in dbs:
-                self.databaseId = arg
-                info = dbs[arg]
+            resolved = self._ResolveDatabaseId(arg)
+            if resolved:
+                self.databaseId = resolved
+                info = dbs[resolved]
                 tableCount = len(info.tables) if hasattr(info, "tables") else 0
-                print(f"Using database: {c(arg, Color.CYAN)} ({tableCount} tables)")
+                print(f"Using database: {c(resolved, Color.CYAN)} ({tableCount} tables)")
             else:
                 print(f"Unknown database: {c(arg, Color.RED)}")
                 print(f"Available: {c(', '.join(sorted(dbs.keys())), Color.DIM)}")
