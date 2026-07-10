@@ -63,8 +63,23 @@ class BirdResultComparer:
             matchMode = "subset" if relaxedPassed else None
 
         passed = strictPassed or relaxedPassed
-        mismatchType = None if passed else "rows_mismatch" if len(generatedColumns or []) >= len(goldColumns) else "columns_no_overlap"
+        mismatchType = self._ClassifyMismatch(passed, generatedColumns, goldColumns)
         return self.BuildVerdict(strictPassed, relaxedPassed, matchMode or ("strict" if strictPassed else None), mismatchType)
+
+    def _ClassifyMismatch(self, passed, generatedColumns, goldColumns):
+        if passed:
+            return None
+        genN = len(generatedColumns or [])
+        goldN = len(goldColumns or [])
+        if genN < goldN:
+            return "missing_gold_column"
+        if genN > goldN:
+            return "extra_generated_column"
+        genSet = {str(c).lower() for c in (generatedColumns or [])}
+        goldSet = {str(c).lower() for c in (goldColumns or [])}
+        if not (genSet & goldSet):
+            return "columns_no_overlap"
+        return "rows_mismatch"
 
     def NormalizeSubRow(self, row, columns):
         return tuple(self.NormalizeValue(row.get(col)) for col in columns)

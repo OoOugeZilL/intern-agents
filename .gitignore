@@ -29,3 +29,6 @@ Thumbs.db
 # Personal / generated
 internship_log_*.tex
 reports/
+
+# Team project reference (not part of this repo)
+askdata-v1/
